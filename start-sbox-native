@@ -24,6 +24,13 @@ export DOTNET_ROOT="${DOTNET_ROOT:-/usr/share/dotnet}"
 export DOTNET_gcServer=1
 export DOTNET_GCHeapHardLimit=0x0
 
+# ─── OpenSSL ABI Fix (safety net if called outside entrypoint) ──────────────
+# Steam's bundled OpenSSL in bin/linuxsteamrt64/ conflicts with system OpenSSL 3.
+# LD_PRELOAD ensures .NET uses the system's version for working TLS.
+if [ -z "${LD_PRELOAD}" ] && [ -f "/usr/lib/x86_64-linux-gnu/libcrypto.so.3" ]; then
+    export LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libcrypto.so.3:/usr/lib/x86_64-linux-gnu/libssl.so.3"
+fi
+
 # ─── Build Server Arguments ──────────────────────────────────────────────────
 ARGS=""
 

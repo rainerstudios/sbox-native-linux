@@ -70,8 +70,34 @@ if [ -d "/home/container/bin/linuxsteamrt64" ]; then
     export LD_LIBRARY_PATH="/home/container/bin/linuxsteamrt64:${LD_LIBRARY_PATH:-}"
 fi
 
+# ─── OpenSSL ABI Fix ───────────────────────────────────────────────────────────
+# Steam bundles older OpenSSL libraries in bin/linuxsteamrt64/. When that
+# directory is on LD_LIBRARY_PATH, .NET's TLS shim loads Steam's old OpenSSL
+# instead of the system's OpenSSL 3, causing ABI mismatches that break HTTPS
+# (package fetching fails with "An error occurred while sending the request").
+# LD_PRELOAD forces the system's OpenSSL to be loaded first, fixing TLS.
+if [ -f "/usr/lib/x86_64-linux-gnu/libcrypto.so.3" ]; then
+    export LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libcrypto.so.3:/usr/lib/x86_64-linux-gnu/libssl.so.3"
+    echo "[entrypoint] LD_PRELOAD set for system OpenSSL (ABI fix)"
+fi
+
+# ─── Engine Library Symlinks ──────────────────────────────────────────────────
+# Source 2 engine tries to dlopen libraries from DOTNET_ROOT (/usr/share/dotnet).
+# Symlink engine .so files there so the runtime can find them without errors.
+DOTNET_DIR="${DOTNET_ROOT:-/usr/share/dotnet}"
+if [ -d "/home/container/bin/linuxsteamrt64" ] && [ -w "${DOTNET_DIR}" ]; then
+    for lib in /home/container/bin/linuxsteamrt64/*.so; do
+        [ -f "$lib" ] || continue
+        target="${DOTNET_DIR}/$(basename "$lib")"
+        if [ ! -e "$target" ]; then
+            ln -sf "$lib" "$target" 2>/dev/null || true
+        fi
+    done
+    echo "[entrypoint] Engine .so files symlinked to ${DOTNET_DIR}"
+fi
+
 # ─── .NET environment ────────────────────────────────────────────────────────
-export DOTNET_ROOT="${DOTNET_ROOT:-/usr/share/dotnet}"
+export DOTNET_ROOT="${DOTNET_DIR}"
 export DOTNET_gcServer=1
 export DOTNET_GCHeapHardLimit=0x0
 
