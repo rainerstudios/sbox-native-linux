@@ -79,6 +79,10 @@ export DOTNET_GCHeapHardLimit=0x0
 export SSL_CERT_FILE="${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}"
 export SSL_CERT_DIR="${SSL_CERT_DIR:-/etc/ssl/certs}"
 
+# Force .NET HttpClient to use IPv4 — Docker containers often have broken IPv6
+# which causes HTTPS requests to timeout when .NET tries IPv6 first
+export DOTNET_SYSTEM_NET_DISABLEIPV6=1
+
 # ─── Replace Startup Variables ───────────────────────────────────────────────
 # Pterodactyl/Pelican pass the egg's startup command via $STARTUP with
 # {{VARIABLE}} placeholders that need to be converted to ${VARIABLE}.
