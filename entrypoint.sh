@@ -75,6 +75,10 @@ export DOTNET_ROOT="${DOTNET_ROOT:-/usr/share/dotnet}"
 export DOTNET_gcServer=1
 export DOTNET_GCHeapHardLimit=0x0
 
+# Ensure .NET can find SSL certificates for HTTPS requests (package fetching)
+export SSL_CERT_FILE="${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}"
+export SSL_CERT_DIR="${SSL_CERT_DIR:-/etc/ssl/certs}"
+
 # ─── Replace Startup Variables ───────────────────────────────────────────────
 # Pterodactyl/Pelican pass the egg's startup command via $STARTUP with
 # {{VARIABLE}} placeholders that need to be converted to ${VARIABLE}.
