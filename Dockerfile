@@ -32,10 +32,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         bash \
         ca-certificates \
         curl \
+        fontconfig \
         iproute2 \
         lib32gcc-s1 \
         libatomic1 \
         libcurl4 \
+        libfontconfig1 \
+        libfreetype6 \
         libgcc-s1 \
         libicu74 \
         libopenal1 \
