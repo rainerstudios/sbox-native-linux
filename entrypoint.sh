@@ -109,6 +109,13 @@ export SSL_CERT_DIR="${SSL_CERT_DIR:-/etc/ssl/certs}"
 # which causes HTTPS requests to timeout when .NET tries IPv6 first
 export DOTNET_SYSTEM_NET_DISABLEIPV6=1
 
+# ─── Console/Terminal Fix ──────────────────────────────────────────────────────
+# .NET's Console.WindowWidth throws ArgumentOutOfRangeException (-1) when running
+# in a Docker container without a TTY. Setting TERM and COLUMNS prevents this.
+export TERM="${TERM:-xterm}"
+export COLUMNS="${COLUMNS:-80}"
+export LINES="${LINES:-24}"
+
 # ─── Replace Startup Variables ───────────────────────────────────────────────
 # Pterodactyl/Pelican pass the egg's startup command via $STARTUP with
 # {{VARIABLE}} placeholders that need to be converted to ${VARIABLE}.
