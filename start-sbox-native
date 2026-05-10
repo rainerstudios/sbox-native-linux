@@ -66,6 +66,15 @@ fi
 # Extra args
 [ -n "${SBOX_EXTRA_ARGS}" ] && ARGS="${ARGS} ${SBOX_EXTRA_ARGS}"
 
+# ─── Terminal size fix ──────────────────────────────────────────────────────
+# s&box calls Console.WindowWidth which returns -1 in some container
+# environments, causing ArgumentOutOfRangeException. Ensure terminal size
+# is set before launching the server.
+export TERM="${TERM:-xterm}"
+export COLUMNS="${COLUMNS:-80}"
+export LINES="${LINES:-24}"
+stty columns 80 rows 24 2>/dev/null || true
+
 # ─── Launch ──────────────────────────────────────────────────────────────────
 if [ -f "./sbox-server.dll" ]; then
     echo "[sbox] Launching via dotnet: dotnet sbox-server.dll ${ARGS}"

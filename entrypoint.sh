@@ -110,11 +110,18 @@ export SSL_CERT_DIR="${SSL_CERT_DIR:-/etc/ssl/certs}"
 export DOTNET_SYSTEM_NET_DISABLEIPV6=1
 
 # ─── Console/Terminal Fix ──────────────────────────────────────────────────────
-# .NET's Console.WindowWidth throws ArgumentOutOfRangeException (-1) when running
-# in a Docker container without a TTY. Setting TERM and COLUMNS prevents this.
+# s&box uses Console.WindowWidth to format output. In Docker containers, this
+# can return -1 causing ArgumentOutOfRangeException when the ioctl(TIOCGWINSZ)
+# fails. Multiple workarounds applied:
+# 1. TERM + COLUMNS/LINES for shell-level terminal info
+# 2. stty to set terminal dimensions if TTY is available
+# 3. DOTNET_CONSOLE_ALLOW_ANSI_COLOR_REDIRECTION for .NET console handling
 export TERM="${TERM:-xterm}"
 export COLUMNS="${COLUMNS:-80}"
 export LINES="${LINES:-24}"
+stty columns 80 rows 24 2>/dev/null || true
+# Tell .NET to treat the console as a proper terminal
+export DOTNET_CONSOLE_ALLOW_ANSI_COLOR_REDIRECTION=1
 
 # ─── Replace Startup Variables ───────────────────────────────────────────────
 # Pterodactyl/Pelican pass the egg's startup command via $STARTUP with

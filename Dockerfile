@@ -47,6 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libstdc++6 \
         libvulkan1 \
         locales \
+        ncurses-base \
         tar \
         wget \
         xdg-user-dirs \
@@ -117,7 +118,10 @@ RUN chmod 0755 /usr/local/bin/entrypoint.sh
 
 USER ${PUID}:${PGID}
 ENV HOME=/home/container \
-    USER=container
+    USER=container \
+    TERM=xterm \
+    COLUMNS=80 \
+    LINES=24
 WORKDIR /home/container
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
