@@ -2,41 +2,22 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # s&box Native Linux — Server Launch Script
 #
-# Called by the egg's STARTUP command. Handles:
-#   1. SteamCMD update (Linux depot, no Wine)
-#   2. .NET runtime verification
-#   3. LD_LIBRARY_PATH for Source 2 native .so files
-#   4. Server launch via dotnet or native binary
+# Called by the egg's STARTUP command (via entrypoint.sh).
+# The entrypoint handles SteamCMD updates and LD_LIBRARY_PATH.
+# This script builds server arguments and launches the server.
 #
 # Startup detection string: "[sbox] Launching" or "Loading game"
 # ─────────────────────────────────────────────────────────────────────────────
 
 cd /home/container
 
-# ─── SteamCMD Update ─────────────────────────────────────────────────────────
-if [ "${SBOX_AUTO_UPDATE}" = "1" ]; then
-    STEAMCMD_BIN=""
-    for p in /usr/local/bin/steamcmd /opt/steamcmd/steamcmd.sh; do
-        if [ -x "$p" ]; then STEAMCMD_BIN="$p"; break; fi
-    done
-
-    if [ -n "${STEAMCMD_BIN}" ]; then
-        echo "[sbox] Updating s&box server (app 1892930, Linux native)..."
-
-        STEAM_ARGS="+force_install_dir /home/container +login anonymous"
-        STEAM_ARGS="${STEAM_ARGS} +app_update 1892930"
-        [ -n "${SBOX_BRANCH}" ] && STEAM_ARGS="${STEAM_ARGS} -beta ${SBOX_BRANCH}"
-        STEAM_ARGS="${STEAM_ARGS} validate +quit"
-
-        ${STEAMCMD_BIN} ${STEAM_ARGS} 2>&1
-        echo "[sbox] SteamCMD finished (exit: $?)"
-    else
-        echo "[sbox] WARNING: SteamCMD not found, skipping update."
-    fi
+# ─── Ensure LD_LIBRARY_PATH (safety net if called outside entrypoint) ───────
+if [ -d "./bin/linuxsteamrt64" ]; then
+    case ":${LD_LIBRARY_PATH:-}:" in
+        *":/home/container/bin/linuxsteamrt64:"*) ;;
+        *) export LD_LIBRARY_PATH="/home/container/bin/linuxsteamrt64:${LD_LIBRARY_PATH:-}" ;;
+    esac
 fi
-
-# ─── Source 2 Library Path ────────────────────────────────────────────────────
-export LD_LIBRARY_PATH="/home/container/bin/linuxsteamrt64:${LD_LIBRARY_PATH:-}"
 
 # ─── .NET Config ─────────────────────────────────────────────────────────────
 export DOTNET_ROOT="${DOTNET_ROOT:-/usr/share/dotnet}"
@@ -88,7 +69,7 @@ elif [ -x "./sbox-server" ]; then
 else
     echo "[sbox] ERROR: No server binary found!"
     echo "[sbox] Expected sbox-server.dll or sbox-server in /home/container/"
-    echo "[sbox] Check SRCDS_APPID is set to 1892930 and auto-update ran."
+    echo "[sbox] Make sure SRCDS_APPID is set to 1892930 and auto-update ran."
     echo ""
     echo "[sbox] Files present:"
     ls -la *.dll *.exe 2>/dev/null || echo "  (no dll/exe files)"

@@ -92,6 +92,11 @@ RUN groupadd -g ${PGID} container 2>/dev/null || true \
     && mkdir -p /home/container \
     && chown -R ${PUID}:${PGID} /home/container
 
+# ── s&box launch script ─────────────────────────────────────────────────────
+# Baked into the image so the egg startup can simply be: bash start-sbox-native
+COPY start-sbox-native /usr/local/bin/start-sbox-native
+RUN chmod 0755 /usr/local/bin/start-sbox-native
+
 # ── Entrypoint ───────────────────────────────────────────────────────────────
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod 0755 /usr/local/bin/entrypoint.sh
