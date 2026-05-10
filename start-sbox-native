@@ -1,0 +1,100 @@
+#!/bin/bash
+# ─────────────────────────────────────────────────────────────────────────────
+# s&box Native Linux — Server Launch Script
+#
+# Called by the egg's STARTUP command. Handles:
+#   1. SteamCMD update (Linux depot, no Wine)
+#   2. .NET runtime verification
+#   3. LD_LIBRARY_PATH for Source 2 native .so files
+#   4. Server launch via dotnet or native binary
+#
+# Startup detection string: "[sbox] Launching" or "Loading game"
+# ─────────────────────────────────────────────────────────────────────────────
+
+cd /home/container
+
+# ─── SteamCMD Update ─────────────────────────────────────────────────────────
+if [ "${SBOX_AUTO_UPDATE}" = "1" ]; then
+    STEAMCMD_BIN=""
+    for p in /usr/local/bin/steamcmd /opt/steamcmd/steamcmd.sh; do
+        if [ -x "$p" ]; then STEAMCMD_BIN="$p"; break; fi
+    done
+
+    if [ -n "${STEAMCMD_BIN}" ]; then
+        echo "[sbox] Updating s&box server (app 1892930, Linux native)..."
+
+        STEAM_ARGS="+force_install_dir /home/container +login anonymous"
+        STEAM_ARGS="${STEAM_ARGS} +app_update 1892930"
+        [ -n "${SBOX_BRANCH}" ] && STEAM_ARGS="${STEAM_ARGS} -beta ${SBOX_BRANCH}"
+        STEAM_ARGS="${STEAM_ARGS} validate +quit"
+
+        ${STEAMCMD_BIN} ${STEAM_ARGS} 2>&1
+        echo "[sbox] SteamCMD finished (exit: $?)"
+    else
+        echo "[sbox] WARNING: SteamCMD not found, skipping update."
+    fi
+fi
+
+# ─── Source 2 Library Path ────────────────────────────────────────────────────
+export LD_LIBRARY_PATH="/home/container/bin/linuxsteamrt64:${LD_LIBRARY_PATH:-}"
+
+# ─── .NET Config ─────────────────────────────────────────────────────────────
+export DOTNET_ROOT="${DOTNET_ROOT:-/usr/share/dotnet}"
+export DOTNET_gcServer=1
+export DOTNET_GCHeapHardLimit=0x0
+
+# ─── Build Server Arguments ──────────────────────────────────────────────────
+ARGS=""
+
+# Game mode / project
+if [ -n "${SBOX_PROJECT}" ] && [ -f "/home/container/projects/${SBOX_PROJECT}" ]; then
+    ARGS="+game /home/container/projects/${SBOX_PROJECT}"
+elif [ -n "${SBOX_PROJECT}" ] && [ -f "/home/container/projects/${SBOX_PROJECT}.sbproj" ]; then
+    ARGS="+game /home/container/projects/${SBOX_PROJECT}.sbproj"
+elif [ -n "${GAME}" ]; then
+    ARGS="+game ${GAME}"
+fi
+
+# Map
+[ -n "${MAP}" ] && ARGS="${ARGS} ${MAP}"
+
+# Server name
+[ -n "${SERVER_NAME}" ] && ARGS="${ARGS} +hostname \"${SERVER_NAME}\""
+
+# Game server token
+[ -n "${TOKEN}" ] && ARGS="${ARGS} +net_game_server_token ${TOKEN}"
+
+# Max players
+if [ -n "${MAX_PLAYERS}" ] && [ "${MAX_PLAYERS}" -gt 0 ] 2>/dev/null; then
+    ARGS="${ARGS} +maxplayers ${MAX_PLAYERS}"
+fi
+
+# Direct connect (bypass SDR)
+if [ "${ENABLE_DIRECT_CONNECT}" = "1" ]; then
+    ARGS="${ARGS} +net_hide_address 0 +port ${SERVER_PORT:-27015}"
+    [ -n "${QUERY_PORT}" ] && ARGS="${ARGS} +net_query_port ${QUERY_PORT}"
+fi
+
+# Extra args
+[ -n "${SBOX_EXTRA_ARGS}" ] && ARGS="${ARGS} ${SBOX_EXTRA_ARGS}"
+
+# ─── Launch ──────────────────────────────────────────────────────────────────
+if [ -f "./sbox-server.dll" ]; then
+    echo "[sbox] Launching via dotnet: dotnet sbox-server.dll ${ARGS}"
+    eval exec dotnet sbox-server.dll ${ARGS}
+elif [ -x "./sbox-server" ]; then
+    echo "[sbox] Launching native binary: ./sbox-server ${ARGS}"
+    eval exec ./sbox-server ${ARGS}
+else
+    echo "[sbox] ERROR: No server binary found!"
+    echo "[sbox] Expected sbox-server.dll or sbox-server in /home/container/"
+    echo "[sbox] Check SRCDS_APPID is set to 1892930 and auto-update ran."
+    echo ""
+    echo "[sbox] Files present:"
+    ls -la *.dll *.exe 2>/dev/null || echo "  (no dll/exe files)"
+    ls -d bin/*/ 2>/dev/null || echo "  (no bin/ subdirs)"
+    echo ""
+    echo "[sbox] Sleeping 5 minutes to prevent crash loop..."
+    sleep 300
+    exit 1
+fi
