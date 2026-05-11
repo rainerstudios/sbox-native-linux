@@ -76,12 +76,17 @@ export LINES="${LINES:-24}"
 stty columns 80 rows 24 2>/dev/null || true
 
 # ─── Launch ──────────────────────────────────────────────────────────────────
+# Background watchdog emits "Server started" after 30s for Wings startup detection.
+# s&box's console uses cursor positioning that garbles the output, making Wings
+# unable to match detection strings in the normal output stream.
+(sleep 30 && echo "" && echo "Server started" && echo "") &
+
 if [ -f "./sbox-server.dll" ]; then
     echo "[sbox] Launching via dotnet: dotnet sbox-server.dll ${ARGS}"
-    eval exec dotnet sbox-server.dll ${ARGS}
+    eval dotnet sbox-server.dll ${ARGS}
 elif [ -x "./sbox-server" ]; then
     echo "[sbox] Launching native binary: ./sbox-server ${ARGS}"
-    eval exec ./sbox-server ${ARGS}
+    eval ./sbox-server ${ARGS}
 else
     echo "[sbox] ERROR: No server binary found!"
     echo "[sbox] Expected sbox-server.dll or sbox-server in /home/container/"
