@@ -83,41 +83,12 @@ if [ -f "/usr/lib/x86_64-linux-gnu/libcrypto.so.3" ]; then
     echo "[entrypoint] LD_PRELOAD set for system OpenSSL (ABI fix)"
 fi
 
-# ─── Custom DOTNET_ROOT with Engine Libraries ───────────────────────────────
-# Source 2 engine tries to dlopen libraries from DOTNET_ROOT.
-# /usr/share/dotnet is NOT writable by the container user in Pterodactyl.
-# Solution: create a custom DOTNET_ROOT under /home/container/ that merges
-# the system .NET runtime (via symlinks) with engine .so files (direct links).
-SYSTEM_DOTNET="${DOTNET_ROOT:-/usr/share/dotnet}"
-CUSTOM_DOTNET="/home/container/.dotnet-root"
-
-if [ -d "/home/container/bin/linuxsteamrt64" ]; then
-    mkdir -p "${CUSTOM_DOTNET}"
-
-    # Link .NET runtime contents (host/, shared/, dotnet binary, etc.)
-    for item in "${SYSTEM_DOTNET}"/*; do
-        [ -e "$item" ] || continue
-        target="${CUSTOM_DOTNET}/$(basename "$item")"
-        [ -e "$target" ] || ln -sf "$item" "$target" 2>/dev/null || true
-    done
-
-    # Link engine .so files (these are what the engine tries to dlopen)
-    ENGINE_COUNT=0
-    for lib in /home/container/bin/linuxsteamrt64/*.so; do
-        [ -f "$lib" ] || continue
-        target="${CUSTOM_DOTNET}/$(basename "$lib")"
-        [ -e "$target" ] || ln -sf "$lib" "$target" 2>/dev/null
-        ENGINE_COUNT=$((ENGINE_COUNT + 1))
-    done
-
-    DOTNET_DIR="${CUSTOM_DOTNET}"
-    echo "[entrypoint] Custom DOTNET_ROOT created with ${ENGINE_COUNT} engine libraries"
-else
-    DOTNET_DIR="${SYSTEM_DOTNET}"
-fi
-
 # ─── .NET environment ────────────────────────────────────────────────────────
-export DOTNET_ROOT="${DOTNET_DIR}"
+# NOTE: Engine dlopen errors for /usr/share/dotnet/libtier0.so etc. are
+# known Facepunch bugs (GitHub #10706). The Source 2 engine hardcodes the
+# dlopen path and /usr/share/dotnet is not writable in Pterodactyl containers.
+# These errors are non-fatal — the server runs correctly without them.
+export DOTNET_ROOT="${DOTNET_ROOT:-/usr/share/dotnet}"
 export DOTNET_gcServer=1
 export DOTNET_GCHeapHardLimit=0x0
 
