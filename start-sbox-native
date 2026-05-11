@@ -76,10 +76,11 @@ export LINES="${LINES:-24}"
 stty columns 80 rows 24 2>/dev/null || true
 
 # ─── Launch ──────────────────────────────────────────────────────────────────
-# Background watchdog emits "Server started" after 30s for Wings startup detection.
-# s&box's console uses cursor positioning that garbles the output, making Wings
-# unable to match detection strings in the normal output stream.
-(sleep 30 && echo "" && echo "Server started" && echo "") &
+# Background watchdog emits "Server started" for Wings startup detection.
+# s&box's console uses VT100 cursor positioning ([1;1H) that overwrites all
+# stdout lines, so normal echo gets clobbered. Writing to fd 1 with a reset
+# escape sequence (\033[999B moves cursor to bottom) forces it onto a new line.
+(sleep 30 && printf '\n\033[999B\nServer started\n' > /proc/1/fd/1 2>/dev/null || printf '\nServer started\n') &
 
 if [ -f "./sbox-server.dll" ]; then
     echo "[sbox] Launching via dotnet: dotnet sbox-server.dll ${ARGS}"
