@@ -97,9 +97,7 @@ ENV DOTNET_ROOT=/usr/share/dotnet \
 RUN groupadd -g ${PGID} container 2>/dev/null || true \
     && useradd -u ${PUID} -g ${PGID} -d /home/container -s /bin/bash container 2>/dev/null || true \
     && mkdir -p /home/container \
-    && chown -R ${PUID}:${PGID} /home/container \
-    # Allow container user to symlink engine .so files into dotnet root at runtime
-    && chmod 0777 /usr/share/dotnet
+    && chown -R ${PUID}:${PGID} /home/container
 
 # ── s&box launch script ─────────────────────────────────────────────────────
 # Baked into the image so the egg startup can simply be: bash start-sbox-native

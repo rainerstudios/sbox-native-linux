@@ -83,33 +83,37 @@ if [ -f "/usr/lib/x86_64-linux-gnu/libcrypto.so.3" ]; then
     echo "[entrypoint] LD_PRELOAD set for system OpenSSL (ABI fix)"
 fi
 
-# ─── Engine Library Copies ───────────────────────────────────────────────────
-# Source 2 engine tries to dlopen libraries from DOTNET_ROOT (/usr/share/dotnet).
-# Copy engine .so files there so the runtime can find them.
-# Uses cp instead of symlinks for Docker overlay filesystem compatibility.
-DOTNET_DIR="${DOTNET_ROOT:-/usr/share/dotnet}"
+# ─── Custom DOTNET_ROOT with Engine Libraries ───────────────────────────────
+# Source 2 engine tries to dlopen libraries from DOTNET_ROOT.
+# /usr/share/dotnet is NOT writable by the container user in Pterodactyl.
+# Solution: create a custom DOTNET_ROOT under /home/container/ that merges
+# the system .NET runtime (via symlinks) with engine .so files (direct links).
+SYSTEM_DOTNET="${DOTNET_ROOT:-/usr/share/dotnet}"
+CUSTOM_DOTNET="/home/container/.dotnet-root"
+
 if [ -d "/home/container/bin/linuxsteamrt64" ]; then
-    ENGINE_COPIED=0
-    ENGINE_FAILED=0
+    mkdir -p "${CUSTOM_DOTNET}"
+
+    # Link .NET runtime contents (host/, shared/, dotnet binary, etc.)
+    for item in "${SYSTEM_DOTNET}"/*; do
+        [ -e "$item" ] || continue
+        target="${CUSTOM_DOTNET}/$(basename "$item")"
+        [ -e "$target" ] || ln -sf "$item" "$target" 2>/dev/null || true
+    done
+
+    # Link engine .so files (these are what the engine tries to dlopen)
+    ENGINE_COUNT=0
     for lib in /home/container/bin/linuxsteamrt64/*.so; do
         [ -f "$lib" ] || continue
-        target="${DOTNET_DIR}/$(basename "$lib")"
-        if [ ! -e "$target" ]; then
-            if cp "$lib" "$target" 2>/dev/null; then
-                ENGINE_COPIED=$((ENGINE_COPIED + 1))
-            elif ln -sf "$lib" "$target" 2>/dev/null; then
-                ENGINE_COPIED=$((ENGINE_COPIED + 1))
-            else
-                ENGINE_FAILED=$((ENGINE_FAILED + 1))
-            fi
-        fi
+        target="${CUSTOM_DOTNET}/$(basename "$lib")"
+        [ -e "$target" ] || ln -sf "$lib" "$target" 2>/dev/null
+        ENGINE_COUNT=$((ENGINE_COUNT + 1))
     done
-    if [ "$ENGINE_COPIED" -gt 0 ]; then
-        echo "[entrypoint] Copied ${ENGINE_COPIED} engine .so files to ${DOTNET_DIR}"
-    fi
-    if [ "$ENGINE_FAILED" -gt 0 ]; then
-        echo "[entrypoint] WARNING: Failed to copy ${ENGINE_FAILED} engine .so files (${DOTNET_DIR} not writable?)"
-    fi
+
+    DOTNET_DIR="${CUSTOM_DOTNET}"
+    echo "[entrypoint] Custom DOTNET_ROOT created with ${ENGINE_COUNT} engine libraries"
+else
+    DOTNET_DIR="${SYSTEM_DOTNET}"
 fi
 
 # ─── .NET environment ────────────────────────────────────────────────────────
