@@ -90,14 +90,8 @@ RUN curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
 ENV DOTNET_ROOT=/usr/share/dotnet \
     DOTNET_CLI_TELEMETRY_OPTOUT=1
 
-# ── OpenSSL ABI fix ────────────────────────────────────────────────────────
-# Steam bundles older OpenSSL in bin/linuxsteamrt64/. When that directory is
-# on LD_LIBRARY_PATH, .NET's TLS shim picks up Steam's old OpenSSL instead of
-# the system's OpenSSL 3, causing ABI mismatches that break HTTPS requests.
-# LD_PRELOAD forces the correct system libraries to be loaded first.
-# The entrypoint also sets this at runtime, but having it in ENV ensures it
-# applies even if entrypoint is bypassed.
-ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libcrypto.so.3:/usr/lib/x86_64-linux-gnu/libssl.so.3
+# ── NOTE: LD_PRELOAD for OpenSSL is set in entrypoint.sh AFTER SteamCMD runs.
+# Do NOT set it here — SteamCMD is 32-bit and rejects 64-bit LD_PRELOAD libs.
 
 # ── Pterodactyl user & directories ───────────────────────────────────────────
 RUN groupadd -g ${PGID} container 2>/dev/null || true \

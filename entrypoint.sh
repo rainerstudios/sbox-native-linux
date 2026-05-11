@@ -48,7 +48,9 @@ if [ -z "${AUTO_UPDATE}" ] || [ "${AUTO_UPDATE}" == "1" ]; then
             [ -n "${SRCDS_BETAPASS}" ] && STEAM_EXTRA="${STEAM_EXTRA} -betapassword ${SRCDS_BETAPASS}"
             [ "${VALIDATE}" == "1" ] && STEAM_EXTRA="${STEAM_EXTRA} validate"
 
-            ${STEAMCMD_BIN} \
+            # Clear LD_PRELOAD for SteamCMD — it's 32-bit and rejects 64-bit libs
+            LD_PRELOAD="" ${STEAMCMD_BIN} \
+                +@sSteamCmdForcePlatformType linux \
                 +force_install_dir /home/container \
                 +login ${STEAM_USER} ${STEAM_PASS} ${STEAM_AUTH} \
                 +app_update ${SRCDS_APPID} ${STEAM_EXTRA} \
