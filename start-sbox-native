@@ -76,11 +76,12 @@ export LINES="${LINES:-24}"
 stty columns 80 rows 24 2>/dev/null || true
 
 # ─── Launch ──────────────────────────────────────────────────────────────────
-# Background watchdog emits "Server started" for Wings startup detection.
+# Background watchdog emits "Loading game" for Wings startup detection.
+# Must match egg config_startup.done so both Wine and native images work.
 # s&box's console uses VT100 cursor positioning ([1;1H) that overwrites all
 # stdout lines, so normal echo gets clobbered. Writing to fd 1 with a reset
 # escape sequence (\033[999B moves cursor to bottom) forces it onto a new line.
-(sleep 30 && printf '\n\033[999B\nServer started\n' > /proc/1/fd/1 2>/dev/null || printf '\nServer started\n') &
+(sleep 30 && printf '\n\033[999B\nLoading game\n' > /proc/1/fd/1 2>/dev/null || printf '\nLoading game\n') &
 
 if [ -f "./sbox-server.dll" ]; then
     echo "[sbox] Launching via dotnet: dotnet sbox-server.dll ${ARGS}"
