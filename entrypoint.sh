@@ -83,19 +83,33 @@ if [ -f "/usr/lib/x86_64-linux-gnu/libcrypto.so.3" ]; then
     echo "[entrypoint] LD_PRELOAD set for system OpenSSL (ABI fix)"
 fi
 
-# ─── Engine Library Symlinks ──────────────────────────────────────────────────
+# ─── Engine Library Copies ───────────────────────────────────────────────────
 # Source 2 engine tries to dlopen libraries from DOTNET_ROOT (/usr/share/dotnet).
-# Symlink engine .so files there so the runtime can find them without errors.
+# Copy engine .so files there so the runtime can find them.
+# Uses cp instead of symlinks for Docker overlay filesystem compatibility.
 DOTNET_DIR="${DOTNET_ROOT:-/usr/share/dotnet}"
-if [ -d "/home/container/bin/linuxsteamrt64" ] && [ -w "${DOTNET_DIR}" ]; then
+if [ -d "/home/container/bin/linuxsteamrt64" ]; then
+    ENGINE_COPIED=0
+    ENGINE_FAILED=0
     for lib in /home/container/bin/linuxsteamrt64/*.so; do
         [ -f "$lib" ] || continue
         target="${DOTNET_DIR}/$(basename "$lib")"
         if [ ! -e "$target" ]; then
-            ln -sf "$lib" "$target" 2>/dev/null || true
+            if cp "$lib" "$target" 2>/dev/null; then
+                ENGINE_COPIED=$((ENGINE_COPIED + 1))
+            elif ln -sf "$lib" "$target" 2>/dev/null; then
+                ENGINE_COPIED=$((ENGINE_COPIED + 1))
+            else
+                ENGINE_FAILED=$((ENGINE_FAILED + 1))
+            fi
         fi
     done
-    echo "[entrypoint] Engine .so files symlinked to ${DOTNET_DIR}"
+    if [ "$ENGINE_COPIED" -gt 0 ]; then
+        echo "[entrypoint] Copied ${ENGINE_COPIED} engine .so files to ${DOTNET_DIR}"
+    fi
+    if [ "$ENGINE_FAILED" -gt 0 ]; then
+        echo "[entrypoint] WARNING: Failed to copy ${ENGINE_FAILED} engine .so files (${DOTNET_DIR} not writable?)"
+    fi
 fi
 
 # ─── .NET environment ────────────────────────────────────────────────────────
