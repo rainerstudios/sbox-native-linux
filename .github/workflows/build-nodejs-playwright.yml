@@ -1,0 +1,50 @@
+name: Build and Publish nodejs-playwright
+
+# Builds the Pterodactyl-compatible Node.js 20 + Chromium/Playwright image and
+# publishes it as a tag on this repo's existing PUBLIC ghcr package, so it is
+# pullable anonymously by Wings nodes with no visibility toggle:
+#   ghcr.io/rainerstudios/sbox-native-linux:nodejs-playwright-20
+# Uses the repo's built-in GITHUB_TOKEN — no personal access token required.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "nodejs-playwright/**"
+      - ".github/workflows/build-nodejs-playwright.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: nodejs-playwright
+          file: nodejs-playwright/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:nodejs-playwright-20
+            ghcr.io/${{ github.repository }}:nodejs-playwright-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
